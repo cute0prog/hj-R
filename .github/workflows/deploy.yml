@@ -1,0 +1,38 @@
+# 워크플로우의 이름
+name: Deploy to S3 and Invalidate CloudFront
+
+# 워크플로우가 언제 실행될지를 정의
+on:
+  push:
+    branches:
+      - main  # main 브랜치에 push 이벤트가 발생했을 때 실행
+
+# 실행될 작업(Job)들의 단위
+jobs:
+  deploy:
+    # 작업이 실행될 가상 환경을 지정 (최신 우분투)
+    runs-on: ubuntu-latest
+    
+    # 작업 내에서 순차적으로 실행될 단계(Step)들
+    steps:
+      # 1. GitHub 저장소의 코드를 가상 환경으로 체크아웃(가져오기)
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. AWS 자격 증명 설정
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-2 
+
+      # 3. AWS S3 버킷으로 파일 동기화
+      - name: Sync files to S3
+        run: |
+          aws s3 sync . s3://cute0-my-web --delete
+          
+      # 4. AWS CloudFront 캐시 무효화
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation --distribution-id E1VO5XBTCAMRTM --paths "/*"
